@@ -24,3 +24,8 @@
 2. In the terminal, navigate to the project directory if not already there.
 3. Run the following command to install the necessary npm packages:
 4. npm install
+
+## Run the application
+1. Using the same terminal run npm run dev.
+2. Open the browser at http://localhost:5500
+   
