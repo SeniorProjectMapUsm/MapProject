@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@textea/json-viewer@3"></script>
     <link href='https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css' rel='stylesheet' />
     <script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
+    <script src="handlebars.js"></script>
     <script src="postmates.js"></script>
 </head>
 
@@ -16,9 +17,68 @@
     <div class="main-content">
         <div id="map"></div>
         <div id="form-output-data">
-            <h1>Ghost Kitchens</h1>
+            <h2>Overview</h2>
+
+            <div class="wrapper-text-content">
+                <div class="text-content">
+                    <h4>Understanding Ghost Kitchens</h4>
+                    <p>Ghost kitchens are delivery-only food preparation sites, also known as virtual, cloud, dark, or shared kitchens. Located in cost-effective areas without dining facilities, they streamline meal delivery and expand culinary choices.</p>
+                </div>
+                <div class="text-content">
+                    <h4>Consumer Considerations</h4>
+                    <p>While offering convenience, it's important for consumers to be vigilant as some operations may mimic established restaurants, potentially affecting food quality. Operated responsibly, ghost kitchens can enhance dining options while maintaining high standards.</p>
+                </div>
+                <div class="text-content">
+                    <h4>Local Restaurants vs Large Chains</h4>
+                    <p>From this small experiment of determining locations with ghost kitchens, our team has discovered that larger chain brands are more likely to host ghost kitchens. However a larger dataset is required to test this conclusion more in depth.</p>
+                </div>
+
+                <div class="text-content">
+                    <h4>Datasets</h4>
+                    <a href="/ghostKitchenDataSet.json">Download Ghost Kitchen Dataset</a>
+                    <a href="/fullDataSet.json">Download Restaurant Dataset</a>
+                </div>
+            </div>
+            
+            
+            <h2>Ghost Kitchens</h2>
            
-            <div id="json-viewer"></div>
+            <div id="ghostKitchens">
+                <script id="resultsOfNewPostmatesDataSet" type="text/x-handlebars-template">
+                    {{#each this}}
+                        <div class="restaurant-group">
+                            {{#each this}}
+                                <div class="ghost-kitchen">
+                                    <div class="ghost-kitchen-image">
+                                        <img src="{{imageUrl}}" alt="{{name}}">
+                                    </div>
+                                    <div class="ghost-kitchen-info">
+                                        <h3>{{name}}</h3>
+                                        <p>{{address}}</p>
+                                        <a href="{{link}}" target="_blank">View Restaurant</a>
+                                    </div>
+                                </div>
+                            {{/each}}
+                        </div>
+                        {{#unless @last}}
+                        <hr>
+                        {{/unless}}
+                    {{/each}}
+                </script>
+            </div>
+
+            <div id="legend" class="legend">
+                <strong>Map Legend</strong>
+                <div class="legend-item">
+                    <img src="/icons/postmates.webp" alt="Postmates" style="width: 20px;">
+                    <span>Postmate Restaurant</span>
+                </div>
+                <div class="legend-item">
+                    <img src="/icons/ghostkitchen.webp" alt="Ghost Kitchen" style="width: 20px;">
+                    <span>Ghost Kitchen</span>
+                </div>
+            </div>
+
 
         </div>
 
@@ -29,12 +89,51 @@
     <script>
         let app
         const images = {
-            postmatesImage: '/icons/postmates.webp'
+            postmatesImage: '/icons/postmates.webp',
+            ghostKitchenImage: '/icons/ghostkitchen.webp'
         };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            let components = document.querySelectorAll('[type="text/x-handlebars-template"]')
+            for(let component of components){
+                const source = component.innerHTML;
+                const compiledTemplate = Handlebars.compile(source);
+                const context = window.store.postmatesData[component.id]
+                console.log(context)
+                const html = compiledTemplate(context);
+                component.parentElement.innerHTML = html;
+            }
+        });
+
+
 
         const initApp = () => {
             window.app = {}
             app = window.app
+            let postmatesDataset = window.store.postmatesData.postmatesDataset;
+            let resultsOfNewPostmatesDataSet = window.store.postmatesData.resultsOfNewPostmatesDataSet;
+
+            // Step 1: Normalize the coordinates within each group in resultsOfNewPostmatesDataSet
+            resultsOfNewPostmatesDataSet.forEach(group => {
+                const firstItem = group[0];
+                group.forEach(item => {
+                    item.latitude = firstItem.latitude;
+                    item.longitude = firstItem.longitude;
+                });
+            });
+
+            // Step 2: Update the original dataset with the new coordinates
+            postmatesDataset.forEach(item => {
+                resultsOfNewPostmatesDataSet.forEach(group => {
+                    group.forEach(groupItem => {
+                        if (groupItem.uuid === item.uuid) {
+                            item.latitude = groupItem.latitude;
+                            item.longitude = groupItem.longitude;
+                        }
+                    });
+                });
+            });
+        
             setJsonViewer()
             app.submitDataUuidHashMap = {
                 'postmates': new Set()
@@ -44,21 +143,79 @@
                 style: "https://api.maptiler.com/maps/streets-v2-light/style.json?key=SKq4TLyw9ExDKWItt7" +
                     "IS",
                 center: [
-                    -89.29269802835559, 31.32433042588349
+                -89.3690492646375, 31.322930581170183
                 ],
-                zoom: 15.8,
+                zoom: 12.8,
                 bearing: 0,
                 pitch: 20
             });
 
+            app.popup = new maplibregl.Popup({
+                closeButton: true,
+                closeOnClick: true
+            });
+
             app.map.on('load', async () => {
                 for (const [id, url] of Object.entries(images)) {
-                    const image = await app.map.loadImage(url)
-                    app.map.addImage(id, image.data)
+                    const image = await app.map.loadImage(url);
+                    app.map.addImage(id, image.data);
                 }
-                handleData(postmatesDataset)
+                handleData(postmatesDataset);
+                handleNewDataSet(); 
 
+                app.map.on('click', (e) => {
+                    // Check all layers that were clicked
+                    const features = app.map.queryRenderedFeatures(e.point);
+
+                    // Filter features to find those from dynamically named Postmates layers
+                    let postmatesFeatures = features.filter(feature => feature.layer.id.startsWith('unclustered-point-'));
+
+                    let itemGroup = {}
+                    for(let feature of postmatesFeatures){
+                        let id = String(feature.geometry.coordinates[0]) + String(feature.geometry.coordinates[1])
+                        if(itemGroup[id] == undefined){
+                            itemGroup[id] = []
+                        }
+                        itemGroup[id].push(feature)
+                    }
+                    postmatesFeatures = []
+                    for(let key in itemGroup){
+                        if(postmatesFeatures.length <  itemGroup[key].length){
+                            postmatesFeatures = itemGroup[key]
+                        }
+                        
+                    }                    
+                    
+                    console.log(postmatesFeatures)
+                    if (postmatesFeatures.length > 0) {
+                        const feature = postmatesFeatures[0];
+                        const coordinates = feature.geometry.coordinates.slice();
+                        let html = ''
+                        for(let item of postmatesFeatures){
+                            html += `<strong>${item.properties.name}</strong><br>
+                                    <img src="${item.properties.imageUrl}" alt="${item.properties.name}" style="width:100%;max-height:100px;object-fit:cover;"><br>
+                                    <a href="${item.properties.link}" target="_blank">Visit Website</a><br>
+                                    ${item.properties.address}<br><br>`
+                        }
+                        if(postmatesFeatures.length > 1){
+                            html = `<div style="max-height: 300px;overflow-y: auto;">${html}</div>`
+                        }
+                        const props = feature.properties;
+
+                        // Adjust coordinates for map wrapping
+                        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                        }
+
+                        // Set and show the popup
+                        app.popup.setLngLat(coordinates)
+                            .setHTML(html)
+                            .addTo(app.map);
+                    }
+                });
             });
+
+            
         }
 
         const setJsonViewer = (data = []) => {
@@ -69,9 +226,10 @@
             app.jsonView.render('#json-viewer')
         }
 
-        function convertToGeoJSON(data) {
-            let icon = images['postmatesImage']
-            app.geojsonId += 1
+        function convertToGeoJSON(data, type = 'postmates') {
+            let icon = (type === 'postmates') ? images['postmatesImage'] : images['ghostKitchenImage'];
+            let color = (type === 'newDataSet') ? 'purple' : 'defaultColor';  // Add your default color
+            app.geojsonId += 1;
             return {
                 type: "FeatureCollection",
                 id: app.geojsonId,
@@ -83,11 +241,17 @@
                     },
                     properties: {
                         iconUrl: icon,
-                        service_type: 'postmates'
+                        color: color,  // Use this property to set the circle color dynamically
+                        service_type: type,
+                        name: item.name,
+                        address: item.address,
+                        imageUrl: item.imageUrl,
+                        link: item.link
                     }
                 }))
             };
         }
+
         const removeSameData = (data) => {
             const newHashMap = app.submitDataUuidHashMap['postmates'].size == 0 ? new Set() : app.submitDataUuidHashMap['postmates']
             let dataArray = []
@@ -176,22 +340,35 @@
             
             }
 
-        
+            const handleNewDataSet = async () => {
+            let newData = window.store.postmatesData.resultsOfNewPostmatesDataSet;
+            newData = newData.map(item => item[0])
+            let geojson = convertToGeoJSON(newData, 'newDataSet');
+            const sourceId = 'points-new-postmates-data';
 
+            if (app.map.getSource(sourceId)) {
+                geojson.features.push(...app.map.getSource(sourceId)._data.features);
+                app.map.getSource(sourceId).setData(geojson);
+            } else {
+                app.map.addSource(sourceId, {
+                    type: 'geojson',
+                    data: geojson
+                });
 
-        const updateMiles = (e) => {
-            if(isNaN(parseFloat(e.target.value))){
-                e.target.value = 1
+                app.map.addLayer({
+                    id: 'new-postmates-points',
+                    type: 'symbol',
+                    source: sourceId,
+                    layout: {
+                            'icon-image': 'ghostKitchenImage',
+                            'icon-size': 0.06,
+                            'icon-allow-overlap': true
+                        }
+                });
             }
-            e.target.value = e.target.value <= 0 ? 1 : e.target.value
-            console.log(e.target.value)
-            app.miles = e.target.value
-            updateArea()
         }
 
-        const handleSubmit = (e) => {
-            e.preventDefault()
-        }
+
 
         initApp()
 

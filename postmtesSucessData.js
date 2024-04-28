@@ -1,4 +1,6 @@
 
+//Data set after grouping by address. In total there are 4 places in hattiesburg that have ghost kitchens (chilis, chuckecheese, logans roadhouse, and buffalo wild wings)
+
 const resultsOfNewPostmatesDataSet = [[
     {
       uuid: '8169d6de-b846-4394-8b0b-94add970344c',
@@ -45,16 +47,6 @@ const resultsOfNewPostmatesDataSet = [[
   ],
   [
     {
-        uuid: 'dbfed337-6916-4bf6-9dfb-8326015e131a',
-        name: 'Chuck E. Cheese (1000 Turtle Creek Drive)',
-        latitude: 31.3268,
-        longitude: -89.3761,
-        imageUrl: 'https://d1ralsognjng37.cloudfront.net/c3af7e52-9ea5-498a-8e41-a2e57eae0477.jpeg',     
-        link: 'https://www.postmates.com/store/chuck-e-cheese-1000-turtle-creek-drive/2_7TN2kWS_ad-4MmAV4TGg?diningMode=DELIVERY',
-        categories: [],
-        address: '1000 Turtle Creek Drive, Hattiesburg, MS 39402'
-      },
-    {
       uuid: '0bb71ef7-0efd-58a4-85a7-b13ec76d6508',
       name: "Buddy V's Cake Slice - 1000 Turtlecreek Drive",
       latitude: 31.3264,
@@ -74,6 +66,16 @@ const resultsOfNewPostmatesDataSet = [[
       categories: [],
       address: '1000 Turtle Creek Drive, Hattiesburg, MS 39402'
 
+    },
+    {
+      uuid: 'dbfed337-6916-4bf6-9dfb-8326015e131a',
+      name: 'Chuck E. Cheese (1000 Turtle Creek Drive)',
+      latitude: 31.3268,
+      longitude: -89.3761,
+      imageUrl: 'https://d1ralsognjng37.cloudfront.net/c3af7e52-9ea5-498a-8e41-a2e57eae0477.jpeg',     
+      link: 'https://www.postmates.com/store/chuck-e-cheese-1000-turtle-creek-drive/2_7TN2kWS_ad-4MmAV4TGg?diningMode=DELIVERY',
+      categories: [],
+      address: '1000 Turtle Creek Drive, Hattiesburg, MS 39402'
     }
   ],
   [
@@ -111,6 +113,8 @@ const resultsOfNewPostmatesDataSet = [[
 ]
 
 
+
+// Original data set
 const postmatesDataset = [
     {
         "uuid": "87209b3f-19a7-5c25-b15d-5c4545c6b755",
@@ -973,41 +977,3 @@ const postmatesDataset = [
         "address": "3000 Hardy St #10, Hattiesburg, MS 39401"
     }
 ]
-
-
-
-// const test = () => {
-//     function groupByAddress(items) {
-//         const grouped = new Map();
-    
-//         items.forEach(item => {
-//             const lowerCaseAddress = item.address.toLowerCase();
-            
-//             const addressWithoutHattiesburg = lowerCaseAddress.replace(/hattiesburg.*$/, '');
-//             const normalizedAddress = addressWithoutHattiesburg.replace(/[^a-zA-Z0-9]/g, '');
-    
-//             if (!grouped.has(normalizedAddress)) {
-//                 grouped.set(normalizedAddress, []);
-//             }
-//             grouped.get(normalizedAddress).push(item);
-//         });
-    
-//         return grouped;
-//     }
-      
-//     const groupedItems = groupByAddress(postmatesDataset);
-    
-//     groupedItems.forEach((value, key) => {
-//         if (value.length > 1) {
-//             console.log(value)
-//         }
-//     });
-// }
-
-
-window.store = {
-    postmatesData:{
-        resultsOfNewPostmatesDataSet,
-        postmatesDataset
-    }
-}
